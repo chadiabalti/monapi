@@ -2,14 +2,19 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USERNAME = credentials('dockerhub-credentials').username
-        DOCKER_PASSWORD = credentials('dockerhub-credentials').password
+        DOCKER_CREDENTIALS = credentials('dockerhub-credentials')  // Remplace par le nom exact des identifiants DockerHub dans Jenkins
     }
 
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()  // Nettoyer l'espace de travail avant chaque build
+            }
+        }
+
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/chadiabalti/monapi.git'  // Remplace par ton repo
+                git branch: 'main', url: 'https://github.com/chadiabalti/monapi.git'  // Remplace par ton repo GitHub
             }
         }
 
@@ -20,7 +25,7 @@ pipeline {
                     def dockerRepo = "baltichadia/monapi"
                     def dockerImage = "${dockerRegistry}/${dockerRepo}:latest"
 
-                    // Construire l'image Docker
+                    echo "Building Docker image: ${dockerImage}"
                     sh "docker build -t ${dockerImage} ."
                 }
             }
@@ -33,10 +38,10 @@ pipeline {
                     def dockerRepo = "baltichadia/monapi"
                     def dockerImage = "${dockerRegistry}/${dockerRepo}:latest"
 
-                    // Se connecter à DockerHub
-                    sh "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+                    echo "Logging in to DockerHub..."
+                    sh "echo ${DOCKER_CREDENTIALS_PSW} | docker login -u ${DOCKER_CREDENTIALS_USR} --password-stdin"
 
-                    // Pousser l'image vers DockerHub
+                    echo "Pushing Docker image: ${dockerImage}"
                     sh "docker push ${dockerImage}"
                 }
             }
@@ -46,8 +51,9 @@ pipeline {
             steps {
                 script {
                     def dockerImage = "baltichadia/monapi:latest"
-                    // Lancer le conteneur avec l'image Docker
-                    sh "docker run -d -p 5000:5000 ${dockerImage}"
+
+                    echo "Deploying Docker container from image: ${dockerImage}"
+                    sh "docker run -d --name monapi-container -p 5000:5000 ${dockerImage}"
                 }
             }
         }
@@ -58,10 +64,11 @@ pipeline {
             echo 'Pipeline completed successfully.'
         }
         failure {
-            echo 'Pipeline failed.'
+            echo 'Pipeline failed. Check the logs for details.'
         }
     }
 }
+
 
 
 
