@@ -2,32 +2,42 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_CREDENTIALS = credentials('dockerhub-credentials')  // Nom des identifiants DockerHub
+        DOCKER_USERNAME = credentials('dockerhub-credentials').username
+        DOCKER_PASSWORD = credentials('dockerhub-credentials').password
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Checkout') {
             steps {
-                git 'https://github.com/chadiabalti/td-atelier-de-genie-logiciel.git' // Remplace par ton propre repo GitHub
+                git branch: 'main', url: 'https://github.com/chadiabalti/monapi.git'  // Remplace par ton repo
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
+                    def dockerRegistry = "docker.io"
+                    def dockerRepo = "baltichadia/monapi"
+                    def dockerImage = "${dockerRegistry}/${dockerRepo}:latest"
+
                     // Construire l'image Docker
-                    sh 'docker build -t baltichadia/monapi:latest .'  // Remplace par ton nom DockerHub
+                    sh "docker build -t ${dockerImage} ."
                 }
             }
         }
 
-        stage('Push to DockerHub') {
+        stage('Push Docker Image') {
             steps {
                 script {
+                    def dockerRegistry = "docker.io"
+                    def dockerRepo = "baltichadia/monapi"
+                    def dockerImage = "${dockerRegistry}/${dockerRepo}:latest"
+
                     // Se connecter à DockerHub
                     sh "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+
                     // Pousser l'image vers DockerHub
-                    sh 'docker push baltichadia/monapi:latest'  // Remplace par ton nom DockerHub
+                    sh "docker push ${dockerImage}"
                 }
             }
         }
@@ -35,11 +45,23 @@ pipeline {
         stage('Deploy Docker Container') {
             steps {
                 script {
+                    def dockerImage = "baltichadia/monapi:latest"
                     // Lancer le conteneur avec l'image Docker
-                    sh 'docker run -d -p 5000:5000 baltichadia/monapi:latest'  // Remplace par ton nom DockerHub
+                    sh "docker run -d -p 5000:5000 ${dockerImage}"
                 }
             }
         }
     }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
 }
+
+
 
